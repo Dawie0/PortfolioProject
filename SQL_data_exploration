@@ -1,0 +1,128 @@
+--1st query was to get a more clear view of the data
+
+
+	SELECT location, date, total_cases, new_cases, total_deaths, population
+FROM `capstone-project-348420.guided_project.covid_deaths` 
+Order By 1,2
+
+
+--2nd was to look at total cases vs. total deaths
+
+
+	SELECT location, date, total_cases, total_deaths, 
+  		(total_deaths / total_cases) * 100 AS death_percentage
+FROM `capstone-project-348420.guided_project.covid_deaths` 
+Order By 1,2
+
+
+--3rd was to look at total cases vs. population
+
+
+	SELECT location, date, population, total_cases,
+ 		(total_cases / population) * 100 AS percentage_of_populaton_got_covid
+FROM `capstone-project-348420.guided_project.covid_deaths` 
+WHERE location = 'United States'
+Order By 1,2
+ 
+ 
+--4th was to look at countries with highest infection rate compared to population
+
+
+	SELECT 
+  		location, population, MAX(total_cases) AS highest_infection_count,
+MAX((total_cases / population)) * 100 AS percentage_population_infected
+FROM `capstone-project-348420.guided_project.covid_deaths` 
+GROUP BY location, population
+Order By percentage_population_infected DESC 
+ 
+ 
+--5th was to look at countries with highest death count per population
+
+
+	SELECT location, MAX(CAST(total_deaths as int)) AS total_death_count
+FROM `capstone-project-348420.guided_project.covid_deaths` 
+WHERE continent IS NOT NULL
+GROUP BY location
+Order By total_death_count DESC 
+
+
+--6th Query was to continents with the highest death count
+
+
+	SELECT location, MAX(CAST(total_deaths as int)) AS total_death_count
+FROM `capstone-project-348420.guided_project.covid_deaths` 
+WHERE continent IS NULL
+GROUP BY location
+Order By total_death_count DESC 
+ 
+ 
+--The Following queries are to look at global numbers
+ 
+--7th Query was to look at the global total cases and deaths per day as well as the global death percentage per day
+
+
+SELECT 
+  	date, SUM(new_cases) AS total_cases_per_date,
+ 		SUM(new_deaths) AS total_deaths_per_date,
+  	(SUM(new_deaths)/SUM(new_cases)) * 100 AS death_percentage
+FROM `capstone-project-348420.guided_project.covid_deaths` 
+WHERE continent IS NOT NULL
+GROUP BY date
+Order By 1, 2
+
+
+--8th Query was similar, here I just looked at the total global cases, deaths and the death percentage
+
+
+	SELECT 
+  		SUM(new_cases) AS total_cases_per_date,
+  		SUM(new_deaths) AS total_deaths_per_date,
+  		(SUM(new_deaths)/SUM(new_cases)) * 100 AS death_percentage
+FROM `capstone-project-348420.guided_project.covid_deaths` 
+WHERE continent IS NOT NULL
+Order By 1, 2
+ 
+ 
+--9th query was to join the covid deaths and vaccination tables to just to check if the join was working correctly
+
+
+SELECT 
+  		*
+FROM `capstone-project-348420.guided_project.covid_deaths` dea 
+JOIN `capstone-project-348420.guided_project.covid_vaccinations` vac
+  		ON dea.location = vac.location
+  		AND dea.date = vac.date
+
+ 
+--10th query was to look at vaccination numbers based on location, here I added a rolling count to tally the daily vaccinations per location.
+
+
+SELECT 
+  		dea.continent, dea.location, dea.date, dea.population, vac.new_vaccinations,
+  		SUM(vac.new_vaccinations) OVER (PARTITION BY dea.location order by dea.location,
+   		dea.date) AS rolling_vaccination_count
+FROM `capstone-project-348420.guided_project.covid_deaths` dea 
+JOIN `capstone-project-348420.guided_project.covid_vaccinations` vac
+  		ON dea.location = vac.location
+  		AND dea.date = vac.date
+WHERE dea.continent IS NOT NULL
+ORDER BY 2, 3
+
+
+--The next query I want to get the percentage of the population that is vaccinated, to do this I need to use the rolling_vaccination_count column, so in order to do that I need to create a cte.
+
+--11th query, here I created a temp table to do calculations and clean up some code, this query was to get the percentage of the population that is vaccinated by location.
+
+
+WITH pop_vs_vac AS
+  ( 
+    SELECT dea.continent, dea.location, dea.date, population,
+      vac.new_vaccinations, SUM(vac.new_vaccinations) OVER (PARTITION BY dea.location order by dea.location, dea.date) AS rolling_vaccination_count
+    FROM `capstone-project-348420.guided_project.covid_deaths` dea
+    JOIN `capstone-project-348420.guided_project.covid_vaccinations` vac
+      ON dea.location = vac.location
+      AND dea.date = vac.date
+    WHERE dea.continent IS NOT NULL
+  )
+SELECT *, (rolling_vaccination_count / population) *100 AS percentage_vaccinated
+FROM pop_vs_vac
