@@ -9,4 +9,4 @@ Steps taken:
   2. Files were then uploaded to Big Query to begin data exploration and cleaning.
 
 
-Please find .csv files in repository.
+Please find compressed files containing .csv files in repository. 
